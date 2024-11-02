@@ -19,7 +19,7 @@ namespace DynamicBox.EventManagement
 			}
 		}
 
-		public delegate void EventDelegate<T> (T e) where T : GameEvent;
+		public delegate void EventDelegate<T> (T eventDetails) where T : GameEvent;
 
 		private Dictionary<System.Type, System.Delegate> delegates = new Dictionary<System.Type, System.Delegate> ();
 
@@ -54,17 +54,18 @@ namespace DynamicBox.EventManagement
 			}
 		}
 
-		public void Raise (GameEvent e)
+		public void Raise (GameEvent eventDetails)
 		{
-			if (e == null)
+			if (eventDetails == null)
 			{
-				Debug.Log ("Invalid event argument: " + e.GetType ().ToString ());
+				Debug.LogError ($"Invalid event argument: {eventDetails.GetType ()}");
+
 				return;
 			}
 
-			if (delegates.ContainsKey (e.GetType ()))
+			if (delegates.ContainsKey (eventDetails.GetType ()))
 			{
-				delegates[e.GetType ()].DynamicInvoke (e);
+				delegates[eventDetails.GetType ()].DynamicInvoke (eventDetails);
 			}
 		}
 	}
