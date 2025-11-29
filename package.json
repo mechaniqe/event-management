@@ -1,7 +1,7 @@
 {
   "name": "net.dynamicbox.eventmanagement",
   "displayName": "Event Manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "unity": "2019.2",
   "description": "This package contains \"Event Manager\" we frequently use in our games.\n\nReach out to sahin@agilesolutions.az for extra details.",
   "keywords": [
@@ -10,5 +10,10 @@
     "event",
     "events"
   ],
-  "category": "Utils"
+  "category": "Utils",
+  "author": {
+    "name": "Dynamic Box",
+    "email": "hello@dynamicbox.net",
+    "url": "https://dynamicbox.net"
+  }
 }
