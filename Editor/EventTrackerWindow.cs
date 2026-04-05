@@ -85,7 +85,8 @@ namespace DynamicBox.EventManagement.Editor
             
             float cutoff = Time.realtimeSinceStartup - _timeRangeSeconds;
             int countToRemove = 0;
-            for (int i = 0; i < _events.Count; i++)
+            // Old events are at the end of the list now
+            for (int i = _events.Count - 1; i >= 0; i--)
             {
                 if (_events[i].RealTime < cutoff) countToRemove++;
                 else break;
@@ -97,13 +98,13 @@ namespace DynamicBox.EventManagement.Editor
                  if (_selectedFrameFilter != -1)
                  {
                       int fRemove = 0;
-                      for (int i = 0; i < _filteredEvents.Count; i++) {
+                      for (int i = _filteredEvents.Count - 1; i >= 0; i--) {
                            if (_filteredEvents[i].RealTime < cutoff) fRemove++;
                            else break;
                       }
                       if (fRemove > 0)
                       {
-                           _filteredEvents.RemoveRange(0, fRemove);
+                           _filteredEvents.RemoveRange(_filteredEvents.Count - fRemove, fRemove);
                            fullRefresh = true;
                       }
                  }
@@ -112,7 +113,7 @@ namespace DynamicBox.EventManagement.Editor
                       fullRefresh = true;
                  }
                  
-                 _events.RemoveRange(0, countToRemove);
+                 _events.RemoveRange(_events.Count - countToRemove, countToRemove);
                  
                  if (fullRefresh) 
                  {
@@ -170,7 +171,7 @@ namespace DynamicBox.EventManagement.Editor
                 captured.PayloadJson = evt.ToString();
             }
 
-            _events.Add(captured);
+            _events.Insert(0, captured);
 
             bool needsRefresh = false;
 
@@ -178,7 +179,7 @@ namespace DynamicBox.EventManagement.Editor
             {
                 if (captured.FrameCount == _selectedFrameFilter)
                 {
-                    _filteredEvents.Add(captured);
+                    _filteredEvents.Insert(0, captured);
                     needsRefresh = true;
                 }
             }
