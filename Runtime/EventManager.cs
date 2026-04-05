@@ -59,6 +59,10 @@ namespace DynamicBox.EventManagement
 			}
 		}
 
+		#if UNITY_EDITOR
+		public static event System.Action<IGameEvent> OnEventFiredDebuggerHook;
+		#endif
+
 		public void Raise(IGameEvent eventDetails)
 		{
 			if (eventDetails == null)
@@ -66,6 +70,10 @@ namespace DynamicBox.EventManagement
 				Debug.LogError("Invalid event argument: null");
 				return;
 			}
+
+			#if UNITY_EDITOR
+			OnEventFiredDebuggerHook?.Invoke(eventDetails);
+			#endif
 
 			if (_delegates.TryGetValue(eventDetails.GetType(), out var dispatcher))
 			{
