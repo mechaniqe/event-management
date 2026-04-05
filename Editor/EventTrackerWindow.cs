@@ -71,7 +71,7 @@ namespace DynamicBox.EventManagement.Editor
 
         private void OnEditorUpdate()
         {
-            if (!_isCapturing || _events.Count == 0) return;
+            if (!_isCapturing || _events.Count == 0 || EditorApplication.isPaused) return;
             
             float cutoff = Time.realtimeSinceStartup - _timeRangeSeconds;
             int countToRemove = 0;
