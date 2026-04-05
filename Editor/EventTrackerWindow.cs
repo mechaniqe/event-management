@@ -149,6 +149,7 @@ namespace DynamicBox.EventManagement.Editor
                 _listView.Rebuild();
 #endif
             }
+            Repaint();
         }
 
         public void CreateGUI()
