@@ -33,7 +33,7 @@ namespace DynamicBox.EventManagement.Editor
             public string PayloadJson;
         }
 
-        private const int MaxEvents = 10000;
+        private const int MaxEvents = 3300;
         private List<CapturedEvent> _events = new List<CapturedEvent>();
         private List<CapturedEvent> _filteredEvents = new List<CapturedEvent>();
         private int _selectedFrameFilter = -1;
@@ -45,6 +45,10 @@ namespace DynamicBox.EventManagement.Editor
         private Label _lblClear;
         private Vector2 _hoverMousePos = new Vector2(-1, -1);
         private bool _isHoveringGraph = false;
+
+        private ToolbarButton _btnPrevFrame;
+        private ToolbarButton _btnNextFrame;
+        private Label _lblFrameStatus;
 
         private void OnEnable()
         {
@@ -124,12 +128,18 @@ namespace DynamicBox.EventManagement.Editor
                     _selectedFrameFilter = -1;
                     _lblClear.text = "Clear";
                     _listView.itemsSource = _events;
+                    _btnPrevFrame?.SetEnabled(false);
+                    _btnNextFrame?.SetEnabled(false);
+                    if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
                     RefreshListView();
                 }
                 else
                 {
                     _events.Clear(); 
                     _filteredEvents.Clear();
+                    _btnPrevFrame?.SetEnabled(false);
+                    _btnNextFrame?.SetEnabled(false);
+                    if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
                     RefreshListView();
                     _detailHeaderLabel.text = "Select an event...";
                     _detailLabel.text = "";
@@ -158,8 +168,20 @@ namespace DynamicBox.EventManagement.Editor
             toggleCapture.style.flexDirection = FlexDirection.Row;
             toggleCapture.style.alignItems = Align.Center;
 
+            var spacer = new ToolbarSpacer() { style = { flexGrow = 1 } };
+            _btnPrevFrame = new ToolbarButton(() => StepFrame(-1)) { text = "◀" };
+            _lblFrameStatus = new Label("Viewing All") { style = { unityTextAlign = TextAnchor.MiddleCenter, width = 100, marginLeft = 4, marginRight = 4 } };
+            _btnNextFrame = new ToolbarButton(() => StepFrame(1)) { text = "▶" };
+
+            _btnPrevFrame.SetEnabled(false);
+            _btnNextFrame.SetEnabled(false);
+
             toolbar.Add(btnClear);
             toolbar.Add(toggleCapture);
+            toolbar.Add(spacer);
+            toolbar.Add(_btnPrevFrame);
+            toolbar.Add(_lblFrameStatus);
+            toolbar.Add(_btnNextFrame);
             root.Add(toolbar);
 
             var graphContainer = new IMGUIContainer(DrawGraphBase);
@@ -375,6 +397,10 @@ namespace DynamicBox.EventManagement.Editor
         {
             _selectedFrameFilter = frame;
             _lblClear.text = "Clear Filter";
+            if (_lblFrameStatus != null) _lblFrameStatus.text = "Frame: " + frame;
+            _btnPrevFrame?.SetEnabled(true);
+            _btnNextFrame?.SetEnabled(true);
+            
             _filteredEvents.Clear();
             foreach(var e in _events)
             {
@@ -387,6 +413,38 @@ namespace DynamicBox.EventManagement.Editor
             if (toggleCapture != null) toggleCapture.value = false;
             
             RefreshListView();
+        }
+
+        private void StepFrame(int dir)
+        {
+            if (_selectedFrameFilter == -1 || _events.Count == 0) return;
+            
+            var uniqueFrames = new SortedSet<int>();
+            foreach (var e in _events) uniqueFrames.Add(e.FrameCount);
+            
+            if (uniqueFrames.Count == 0) return;
+
+            var frameList = new List<int>(uniqueFrames);
+            int idx = frameList.IndexOf(_selectedFrameFilter);
+            if (idx != -1)
+            {
+                idx += dir;
+                if (idx >= 0 && idx < frameList.Count)
+                {
+                    SelectFrame(frameList[idx]);
+                }
+            }
+            else
+            {
+                if (dir > 0)
+                {
+                    foreach (var f in frameList) if (f > _selectedFrameFilter) { SelectFrame(f); return; }
+                }
+                else
+                {
+                    for (int i = frameList.Count - 1; i >= 0; i--) if (frameList[i] < _selectedFrameFilter) { SelectFrame(frameList[i]); return; }
+                }
+            }
         }
     }
 }
