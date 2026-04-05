@@ -41,6 +41,7 @@ namespace DynamicBox.EventManagement.Editor
         private List<CapturedEvent> _events = new List<CapturedEvent>();
         private List<CapturedEvent> _filteredEvents = new List<CapturedEvent>();
         private int _selectedFrameFilter = -1;
+        private int _highlightedFrame = -1;
         private bool _isCapturing = true;
 
         private ListView _listView;
@@ -319,6 +320,7 @@ namespace DynamicBox.EventManagement.Editor
 
             if (selectedCap != null)
             {
+                _highlightedFrame = selectedCap.FrameCount;
                 _detailHeaderLabel.text = $"Event: {selectedCap.TypeName}\nTime: {selectedCap.RealTime:F2} (Frame {selectedCap.FrameCount})\nSender: {selectedCap.SenderClass}.{selectedCap.SenderMethod}()\nListeners: {selectedCap.ListenerCount}";
                     
                 var sb = new System.Text.StringBuilder();
@@ -339,9 +341,12 @@ namespace DynamicBox.EventManagement.Editor
             }
             else
             {
+                _highlightedFrame = -1;
                 _detailHeaderLabel.text = "Select an event...";
                 _detailLabel.text = "";
             }
+            
+            Repaint();
         }
 
         private void DrawGraphBase()
@@ -401,6 +406,16 @@ namespace DynamicBox.EventManagement.Editor
                     if (x >= rect.x && x <= rect.xMax)
                     {
                         Handles.color = Color.yellow;
+                        Handles.DrawLine(new Vector3(x, rect.y, 0), new Vector3(x, rect.yMax, 0));
+                    }
+                }
+
+                if (_highlightedFrame != -1 && _highlightedFrame != _selectedFrameFilter)
+                {
+                    float x = rect.x + ((_highlightedFrame - minFrame) / (float)frameRange) * rect.width;
+                    if (x >= rect.x && x <= rect.xMax)
+                    {
+                        Handles.color = new Color(0.4f, 0.7f, 1f, 0.5f);
                         Handles.DrawLine(new Vector3(x, rect.y, 0), new Vector3(x, rect.yMax, 0));
                     }
                 }
