@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DynamicBox.EventManagement
@@ -19,53 +19,77 @@ namespace DynamicBox.EventManagement
 			}
 		}
 
-		public delegate void EventDelegate<T> (T eventDetails) where T : GameEvent;
+		private EventManager() { }
 
-		private Dictionary<System.Type, System.Delegate> delegates = new Dictionary<System.Type, System.Delegate> ();
+		public delegate void EventDelegate<T> (T eventDetails) where T : IGameEvent;
 
-		public void AddListener<T> (EventDelegate<T> del) where T : GameEvent
+		private interface IEventDispatcher
 		{
-			if (delegates.ContainsKey (typeof (T)))
-			{
-				System.Delegate tempDel = delegates[typeof (T)];
+			void Dispatch(IGameEvent eventDetails);
+		}
 
-				delegates[typeof (T)] = System.Delegate.Combine (tempDel, del);
+		private class EventDispatcher<T> : IEventDispatcher where T : IGameEvent
+		{
+			public EventDelegate<T> OnEvent;
+
+			public void Dispatch(IGameEvent eventDetails)
+			{
+				OnEvent?.Invoke((T)eventDetails);
+			}
+		}
+
+		private Dictionary<System.Type, IEventDispatcher> delegates = new Dictionary<System.Type, IEventDispatcher> ();
+
+		public void AddListener<T> (EventDelegate<T> del) where T : IGameEvent
+		{
+			var type = typeof(T);
+
+			if (!delegates.TryGetValue(type, out var dispatcherBase))
+			{
+				var dispatcher = new EventDispatcher<T>();
+				dispatcher.OnEvent += del;
+				delegates[type] = dispatcher;
 			}
 			else
 			{
-				delegates[typeof (T)] = del;
+				var dispatcher = dispatcherBase as EventDispatcher<T>;
+				if (dispatcher != null)
+				{
+					dispatcher.OnEvent += del;
+				}
 			}
 		}
 
-		public void RemoveListener<T> (EventDelegate<T> del) where T : GameEvent
+		public void RemoveListener<T> (EventDelegate<T> del) where T : IGameEvent
 		{
-			if (delegates.ContainsKey (typeof (T)))
-			{
-				var currentDel = System.Delegate.Remove (delegates[typeof (T)], del);
+			var type = typeof(T);
 
-				if (currentDel == null)
+			if (delegates.TryGetValue(type, out var dispatcherBase))
+			{
+				var dispatcher = dispatcherBase as EventDispatcher<T>;
+				if (dispatcher != null)
 				{
-					delegates.Remove (typeof (T));
-				}
-				else
-				{
-					delegates[typeof (T)] = currentDel;
+					dispatcher.OnEvent -= del;
+					if (dispatcher.OnEvent == null)
+					{
+						delegates.Remove(type);
+					}
 				}
 			}
 		}
 
-		public void Raise (GameEvent eventDetails)
+		public void Raise (IGameEvent eventDetails)
 		{
 			if (eventDetails == null)
 			{
-				Debug.LogError ($"Invalid event argument: {eventDetails.GetType ()}");
+				Debug.LogError ("Invalid event argument: null");
 
 				return;
 			}
 
-			if (delegates.ContainsKey (eventDetails.GetType ()))
+			if (delegates.TryGetValue(eventDetails.GetType (), out var dispatcher))
 			{
-				delegates[eventDetails.GetType ()].DynamicInvoke (eventDetails);
+				dispatcher.Dispatch(eventDetails);
 			}
 		}
 	}
