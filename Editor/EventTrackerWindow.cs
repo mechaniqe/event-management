@@ -43,6 +43,8 @@ namespace DynamicBox.EventManagement.Editor
         private Label _detailLabel;
         private Label _detailHeaderLabel;
         private Label _lblClear;
+        private Vector2 _hoverMousePos = new Vector2(-1, -1);
+        private bool _isHoveringGraph = false;
 
         private void OnEnable()
         {
@@ -163,6 +165,15 @@ namespace DynamicBox.EventManagement.Editor
             var graphContainer = new IMGUIContainer(DrawGraphBase);
             graphContainer.style.height = 100;
             graphContainer.style.flexShrink = 0;
+            graphContainer.RegisterCallback<MouseMoveEvent>(evt => {
+                _hoverMousePos = evt.localMousePosition;
+                _isHoveringGraph = true;
+                graphContainer.MarkDirtyRepaint();
+            });
+            graphContainer.RegisterCallback<MouseLeaveEvent>(evt => {
+                _isHoveringGraph = false;
+                graphContainer.MarkDirtyRepaint();
+            });
             root.Add(graphContainer);
 
             var splitView = new TwoPaneSplitView(1, 400, TwoPaneSplitViewOrientation.Horizontal);
@@ -311,6 +322,29 @@ namespace DynamicBox.EventManagement.Editor
                         Handles.color = Color.yellow;
                         Handles.DrawLine(new Vector3(x, rect.y, 0), new Vector3(x, rect.yMax, 0));
                     }
+                }
+                
+                if (_isHoveringGraph && rect.Contains(_hoverMousePos))
+                {
+                    float t = (_hoverMousePos.x - rect.x) / rect.width;
+                    t = Mathf.Clamp01(t);
+                    int hoveredFrame = minFrame + Mathf.RoundToInt(t * frameRange);
+                    frameCounts.TryGetValue(hoveredFrame, out int hCnt);
+
+                    float x = rect.x + ((hoveredFrame - minFrame) / (float)frameRange) * rect.width;
+                    
+                    Handles.color = new Color(0.7f, 0.7f, 0.7f, 0.5f);
+                    Handles.DrawLine(new Vector3(x, rect.y, 0), new Vector3(x, rect.yMax, 0));
+                    
+                    string tooltip = $"Frame: {hoveredFrame}\nEvents: {hCnt}";
+                    Vector2 size = GUI.skin.label.CalcSize(new GUIContent(tooltip));
+                    Rect tipRect = new Rect(_hoverMousePos.x + 10, _hoverMousePos.y + 10, size.x + 8, size.y + 4);
+                    
+                    if (tipRect.xMax > rect.xMax) tipRect.x = _hoverMousePos.x - tipRect.width - 10;
+                    if (tipRect.yMax > rect.yMax) tipRect.y = _hoverMousePos.y - tipRect.height - 10;
+                    
+                    EditorGUI.DrawRect(tipRect, new Color(0.1f, 0.1f, 0.1f, 0.95f));
+                    GUI.Label(tipRect, tooltip, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } });
                 }
             }
             
