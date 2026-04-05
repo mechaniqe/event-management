@@ -5,23 +5,12 @@ namespace DynamicBox.EventManagement
 {
 	public class EventManager
 	{
-		private static EventManager _instance = null;
-		public static EventManager Instance
-		{
-			get
-			{
-				if (_instance == null)
-				{
-					_instance = new EventManager ();
-				}
-
-				return _instance;
-			}
-		}
+		private static readonly EventManager _instance = new EventManager();
+		public static EventManager Instance => _instance;
 
 		private EventManager() { }
 
-		public delegate void EventDelegate<T> (T eventDetails) where T : IGameEvent;
+		public delegate void EventDelegate<T>(T eventDetails) where T : IGameEvent;
 
 		private interface IEventDispatcher
 		{
@@ -38,56 +27,47 @@ namespace DynamicBox.EventManagement
 			}
 		}
 
-		private Dictionary<System.Type, IEventDispatcher> delegates = new Dictionary<System.Type, IEventDispatcher> ();
+		private readonly Dictionary<System.Type, IEventDispatcher> _delegates = new Dictionary<System.Type, IEventDispatcher>();
 
-		public void AddListener<T> (EventDelegate<T> del) where T : IGameEvent
+		public void AddListener<T>(EventDelegate<T> del) where T : IGameEvent
 		{
 			var type = typeof(T);
 
-			if (!delegates.TryGetValue(type, out var dispatcherBase))
+			if (!_delegates.TryGetValue(type, out var dispatcherBase))
 			{
 				var dispatcher = new EventDispatcher<T>();
 				dispatcher.OnEvent += del;
-				delegates[type] = dispatcher;
+				_delegates[type] = dispatcher;
 			}
-			else
+			else if (dispatcherBase is EventDispatcher<T> dispatcher)
 			{
-				var dispatcher = dispatcherBase as EventDispatcher<T>;
-				if (dispatcher != null)
-				{
-					dispatcher.OnEvent += del;
-				}
+				dispatcher.OnEvent += del;
 			}
 		}
 
-		public void RemoveListener<T> (EventDelegate<T> del) where T : IGameEvent
+		public void RemoveListener<T>(EventDelegate<T> del) where T : IGameEvent
 		{
 			var type = typeof(T);
 
-			if (delegates.TryGetValue(type, out var dispatcherBase))
+			if (_delegates.TryGetValue(type, out var dispatcherBase) && dispatcherBase is EventDispatcher<T> dispatcher)
 			{
-				var dispatcher = dispatcherBase as EventDispatcher<T>;
-				if (dispatcher != null)
+				dispatcher.OnEvent -= del;
+				if (dispatcher.OnEvent == null)
 				{
-					dispatcher.OnEvent -= del;
-					if (dispatcher.OnEvent == null)
-					{
-						delegates.Remove(type);
-					}
+					_delegates.Remove(type);
 				}
 			}
 		}
 
-		public void Raise (IGameEvent eventDetails)
+		public void Raise(IGameEvent eventDetails)
 		{
 			if (eventDetails == null)
 			{
-				Debug.LogError ("Invalid event argument: null");
-
+				Debug.LogError("Invalid event argument: null");
 				return;
 			}
 
-			if (delegates.TryGetValue(eventDetails.GetType (), out var dispatcher))
+			if (_delegates.TryGetValue(eventDetails.GetType(), out var dispatcher))
 			{
 				dispatcher.Dispatch(eventDetails);
 			}
