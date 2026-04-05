@@ -157,29 +157,7 @@ namespace DynamicBox.EventManagement.Editor
 
             var toolbar = new Toolbar();
             
-            var btnClear = new ToolbarButton(() => { 
-                if (_selectedFrameFilter != -1)
-                {
-                    _selectedFrameFilter = -1;
-                    _lblClear.text = "Clear";
-                    _listView.itemsSource = _events;
-                    _btnPrevFrame?.SetEnabled(false);
-                    _btnNextFrame?.SetEnabled(false);
-                    if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
-                    RefreshListView();
-                }
-                else
-                {
-                    _events.Clear(); 
-                    _filteredEvents.Clear();
-                    _btnPrevFrame?.SetEnabled(false);
-                    _btnNextFrame?.SetEnabled(false);
-                    if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
-                    RefreshListView();
-                    _detailHeaderLabel.text = "Select an event...";
-                    _detailLabel.text = "";
-                }
-            });
+            var btnClear = new ToolbarButton(() => { ClearFrameFilter(); });
             
             var clearIcon = new Image { image = EditorGUIUtility.IconContent("TreeEditor.Trash").image };
             clearIcon.style.width = 16;
@@ -251,12 +229,15 @@ namespace DynamicBox.EventManagement.Editor
             listHeader.style.paddingBottom = 2;
             
             var headerTime = new Label("Time") { style = { width = 80, unityFontStyleAndWeight = FontStyle.Bold } };
-            var headerType = new Label("Event Type") { style = { width = 120, unityFontStyleAndWeight = FontStyle.Bold } };
-            var headerSender = new Label("Sender") { style = { flexGrow = 1, unityFontStyleAndWeight = FontStyle.Bold } };
+            var headerType = new Label("Event Type") { style = { width = 150, unityFontStyleAndWeight = FontStyle.Bold } };
+            var headerSender = new Label("Sender") { style = { width = 200, flexGrow = 1, unityFontStyleAndWeight = FontStyle.Bold } };
             var headerListeners = new Label("Lsn") { style = { width = 30, unityFontStyleAndWeight = FontStyle.Bold } };
             listHeader.Add(headerTime);
+            listHeader.Add(CreateResizer(headerTime, "time"));
             listHeader.Add(headerType);
+            listHeader.Add(CreateResizer(headerType, "type"));
             listHeader.Add(headerSender);
+            listHeader.Add(CreateResizer(headerSender, "sender"));
             listHeader.Add(headerListeners);
             leftPane.Add(listHeader);
 
@@ -289,10 +270,11 @@ namespace DynamicBox.EventManagement.Editor
             var element = new VisualElement();
             element.style.flexDirection = FlexDirection.Row;
             
-            var timeLabel = new Label { name = "time", style = { width = 80 } };
-            var typeLabel = new Label { name = "type", style = { width = 120, color = new Color(0.4f, 0.7f, 1f) } };
-            var senderLabel = new Label { name = "sender", style = { flexGrow = 1, color = new Color(0.7f, 0.7f, 0.7f) } };
-            var listenersLabel = new Label { name = "listeners", style = { width = 30, unityTextAlign = TextAnchor.MiddleCenter } };
+            // Note: Flex shrink is 0 to ensure they don't squash when dragged explicitly
+            var timeLabel = new Label { name = "time", style = { width = 80, flexShrink = 0, paddingRight = 4 } };
+            var typeLabel = new Label { name = "type", style = { width = 150, flexShrink = 0, color = new Color(0.4f, 0.7f, 1f), paddingRight = 4 } };
+            var senderLabel = new Label { name = "sender", style = { width = 200, flexGrow = 1, flexShrink = 0, color = new Color(0.7f, 0.7f, 0.7f), paddingRight = 4 } };
+            var listenersLabel = new Label { name = "listeners", style = { width = 30, flexShrink = 0, unityTextAlign = TextAnchor.MiddleCenter } };
             
             element.Add(timeLabel);
             element.Add(typeLabel);
@@ -321,29 +303,43 @@ namespace DynamicBox.EventManagement.Editor
 
         private void OnSelectionChanged(IEnumerable<object> selection)
         {
-            foreach (var item in selection)
+            CapturedEvent selectedCap = null;
+            if (selection != null)
             {
-                if (item is CapturedEvent cap)
+                foreach (var item in selection)
                 {
-                    _detailHeaderLabel.text = $"Event: {cap.TypeName}\nTime: {cap.RealTime:F2} (Frame {cap.FrameCount})\nSender: {cap.SenderClass}.{cap.SenderMethod}()\nListeners: {cap.ListenerCount}";
-                    
-                    var sb = new System.Text.StringBuilder();
-                    if (cap.ListenerCount > 0)
+                    if (item is CapturedEvent cap)
                     {
-                        sb.AppendLine("--- Listeners ---");
-                        for (int i = 0; i < cap.ListenerCount; i++)
-                        {
-                            sb.AppendLine($"- {cap.ListenerDetails[i]}");
-                        }
-                        sb.AppendLine();
+                        selectedCap = cap;
+                        break;
                     }
-                    
-                    sb.AppendLine("--- Payload ---");
-                    sb.Append(cap.PayloadJson);
-
-                    _detailLabel.text = sb.ToString();
                 }
-                return;
+            }
+
+            if (selectedCap != null)
+            {
+                _detailHeaderLabel.text = $"Event: {selectedCap.TypeName}\nTime: {selectedCap.RealTime:F2} (Frame {selectedCap.FrameCount})\nSender: {selectedCap.SenderClass}.{selectedCap.SenderMethod}()\nListeners: {selectedCap.ListenerCount}";
+                    
+                var sb = new System.Text.StringBuilder();
+                if (selectedCap.ListenerCount > 0)
+                {
+                    sb.AppendLine("--- Listeners ---");
+                    for (int i = 0; i < selectedCap.ListenerCount; i++)
+                    {
+                        sb.AppendLine($"- {selectedCap.ListenerDetails[i]}");
+                    }
+                    sb.AppendLine();
+                }
+                    
+                sb.AppendLine("--- Payload ---");
+                sb.Append(selectedCap.PayloadJson);
+
+                _detailLabel.text = sb.ToString();
+            }
+            else
+            {
+                _detailHeaderLabel.text = "Select an event...";
+                _detailLabel.text = "";
             }
         }
 
@@ -434,6 +430,16 @@ namespace DynamicBox.EventManagement.Editor
             
             if (Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
             {
+                if (Event.current.button == 1) // Right click clears filter
+                {
+                    if (_selectedFrameFilter != -1)
+                    {
+                        ClearFrameFilter();
+                        Event.current.Use();
+                    }
+                    return;
+                }
+
                 if (_events.Count == 0) return;
                 int minFrame = int.MaxValue;
                 int maxFrame = int.MinValue;
@@ -474,6 +480,10 @@ namespace DynamicBox.EventManagement.Editor
             var toggleCapture = rootVisualElement.Q<ToolbarToggle>("toggleCapture");
             if (toggleCapture != null) toggleCapture.value = false;
             
+            _listView.ClearSelection();
+            _detailHeaderLabel.text = "Select an event...";
+            _detailLabel.text = "";
+
             RefreshListView();
         }
 
@@ -507,6 +517,83 @@ namespace DynamicBox.EventManagement.Editor
                     for (int i = frameList.Count - 1; i >= 0; i--) if (frameList[i] < _selectedFrameFilter) { SelectFrame(frameList[i]); return; }
                 }
             }
+        }
+        private void ClearFrameFilter()
+        {
+            if (_selectedFrameFilter != -1)
+            {
+                _selectedFrameFilter = -1;
+                _lblClear.text = "Clear";
+                _listView.itemsSource = _events;
+                _btnPrevFrame?.SetEnabled(false);
+                _btnNextFrame?.SetEnabled(false);
+                if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
+                
+                _listView.ClearSelection();
+                _detailHeaderLabel.text = "Select an event...";
+                _detailLabel.text = "";
+                
+                RefreshListView();
+            }
+            else
+            {
+                _events.Clear(); 
+                _filteredEvents.Clear();
+                _btnPrevFrame?.SetEnabled(false);
+                _btnNextFrame?.SetEnabled(false);
+                if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
+                RefreshListView();
+                _detailHeaderLabel.text = "Select an event...";
+                _detailLabel.text = "";
+            }
+        }
+
+        private VisualElement CreateResizer(VisualElement targetCol, string classNameBinding)
+        {
+            var resizer = new VisualElement();
+            resizer.style.width = 4;
+            resizer.style.cursor = new StyleCursor(StyleKeyword.Null); // Ideally split-resize, falling back to null initially
+            resizer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.8f); 
+            
+            bool isDragging = false;
+            float startMouseX = 0;
+            float startWidth = 0;
+
+            resizer.RegisterCallback<MouseDownEvent>(evt => {
+                if (evt.button != 0) return;
+                isDragging = true;
+                startMouseX = evt.mousePosition.x;
+                startWidth = targetCol.layout.width;
+                resizer.style.backgroundColor = new Color(1, 1, 1, 0.3f);
+                resizer.CaptureMouse();
+                evt.StopPropagation();
+            });
+
+            resizer.RegisterCallback<MouseMoveEvent>(evt => {
+                if (!isDragging) return;
+                float delta = evt.mousePosition.x - startMouseX;
+                float newWidth = Mathf.Max(30, startWidth + delta);
+                
+                targetCol.style.width = newWidth;
+                targetCol.style.flexGrow = 0;
+                
+                _listView?.Query<Label>(classNameBinding).ForEach(lbl => {
+                    lbl.style.width = newWidth;
+                    lbl.style.flexGrow = 0;
+                });
+                
+                evt.StopPropagation();
+            });
+
+            resizer.RegisterCallback<MouseUpEvent>(evt => {
+                if (!isDragging) return;
+                isDragging = false;
+                resizer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.8f);
+                resizer.ReleaseMouse();
+                evt.StopPropagation();
+            });
+
+            return resizer;
         }
     }
 }
