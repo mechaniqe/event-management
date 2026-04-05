@@ -60,6 +60,7 @@ namespace DynamicBox.EventManagement.Editor
         {
             EventManager.OnEventFiredDebuggerHook += OnEventFired;
             EditorApplication.update += OnEditorUpdate;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             _timeRangeSeconds = EditorPrefs.GetInt("EventTracker_TimeRange", 5);
         }
 
@@ -67,6 +68,15 @@ namespace DynamicBox.EventManagement.Editor
         {
             EventManager.OnEventFiredDebuggerHook -= OnEventFired;
             EditorApplication.update -= OnEditorUpdate;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        }
+
+        private void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.EnteredPlayMode)
+            {
+                ClearFrameFilter();
+            }
         }
 
         private void OnEditorUpdate()
