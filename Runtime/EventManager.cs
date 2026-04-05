@@ -15,6 +15,9 @@ namespace DynamicBox.EventManagement
 		private interface IEventDispatcher
 		{
 			void Dispatch(IGameEvent eventDetails);
+#if UNITY_EDITOR
+			System.Delegate[] GetListeners();
+#endif
 		}
 
 		private class EventDispatcher<T> : IEventDispatcher where T : IGameEvent
@@ -25,6 +28,13 @@ namespace DynamicBox.EventManagement
 			{
 				OnEvent?.Invoke((T)eventDetails);
 			}
+
+#if UNITY_EDITOR
+			public System.Delegate[] GetListeners()
+			{
+				return OnEvent?.GetInvocationList() ?? new System.Delegate[0];
+			}
+#endif
 		}
 
 		private readonly Dictionary<System.Type, IEventDispatcher> _delegates = new Dictionary<System.Type, IEventDispatcher>();
@@ -61,6 +71,15 @@ namespace DynamicBox.EventManagement
 
 		#if UNITY_EDITOR
 		public static event System.Action<IGameEvent> OnEventFiredDebuggerHook;
+
+		public System.Delegate[] GetDebugListeners(System.Type eventType)
+		{
+			if (_delegates.TryGetValue(eventType, out var dispatcher))
+			{
+				return dispatcher.GetListeners();
+			}
+			return new System.Delegate[0];
+		}
 		#endif
 
 		public void Raise(IGameEvent eventDetails)

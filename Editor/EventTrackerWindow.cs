@@ -31,6 +31,10 @@ namespace DynamicBox.EventManagement.Editor
             public int FrameCount;
             public string TypeName;
             public string PayloadJson;
+            public string SenderClass;
+            public string SenderMethod;
+            public int ListenerCount;
+            public string[] ListenerDetails;
         }
 
         private const int MaxEvents = 3300;
@@ -64,12 +68,43 @@ namespace DynamicBox.EventManagement.Editor
         {
             if (!_isCapturing) return;
 
+            string senderClass = "Unknown";
+            string senderMethod = "Unknown";
+            var st = new System.Diagnostics.StackTrace();
+            for (int i = 0; i < st.FrameCount; i++)
+            {
+                var method = st.GetFrame(i)?.GetMethod();
+                if (method != null && method.DeclaringType != null)
+                {
+                    if (method.DeclaringType != typeof(EventManager) && method.DeclaringType.Namespace != "DynamicBox.EventManagement.Editor")
+                    {
+                        senderClass = method.DeclaringType.Name;
+                        senderMethod = method.Name;
+                        break;
+                    }
+                }
+            }
+
+            var delegates = EventManager.Instance.GetDebugListeners(evt.GetType());
+            int listenerCount = delegates.Length;
+            string[] listenerDetails = new string[listenerCount];
+            for (int i = 0; i < listenerCount; i++)
+            {
+                var d = delegates[i];
+                string targetName = d.Target != null ? d.Target.GetType().Name : "Static";
+                listenerDetails[i] = $"{targetName}.{d.Method.Name}()";
+            }
+
             var captured = new CapturedEvent
             {
                 RealTime = Time.realtimeSinceStartup,
                 FrameCount = Time.frameCount,
                 TypeName = evt.GetType().Name,
-                PayloadJson = JsonUtility.ToJson(evt, true)
+                PayloadJson = JsonUtility.ToJson(evt, true),
+                SenderClass = senderClass,
+                SenderMethod = senderMethod,
+                ListenerCount = listenerCount,
+                ListenerDetails = listenerDetails
             };
 
             if (string.IsNullOrEmpty(captured.PayloadJson) || captured.PayloadJson == "{}")
@@ -216,9 +251,13 @@ namespace DynamicBox.EventManagement.Editor
             listHeader.style.paddingBottom = 2;
             
             var headerTime = new Label("Time") { style = { width = 80, unityFontStyleAndWeight = FontStyle.Bold } };
-            var headerType = new Label("Event Type") { style = { flexGrow = 1, unityFontStyleAndWeight = FontStyle.Bold } };
+            var headerType = new Label("Event Type") { style = { width = 120, unityFontStyleAndWeight = FontStyle.Bold } };
+            var headerSender = new Label("Sender") { style = { flexGrow = 1, unityFontStyleAndWeight = FontStyle.Bold } };
+            var headerListeners = new Label("Lsn") { style = { width = 30, unityFontStyleAndWeight = FontStyle.Bold } };
             listHeader.Add(headerTime);
             listHeader.Add(headerType);
+            listHeader.Add(headerSender);
+            listHeader.Add(headerListeners);
             leftPane.Add(listHeader);
 
             _listView = new ListView(_events, 22, MakeItem, BindItem);
@@ -251,10 +290,14 @@ namespace DynamicBox.EventManagement.Editor
             element.style.flexDirection = FlexDirection.Row;
             
             var timeLabel = new Label { name = "time", style = { width = 80 } };
-            var typeLabel = new Label { name = "type", style = { flexGrow = 1, color = new Color(0.3f, 0.6f, 1f) } };
+            var typeLabel = new Label { name = "type", style = { width = 120, color = new Color(0.4f, 0.7f, 1f) } };
+            var senderLabel = new Label { name = "sender", style = { flexGrow = 1, color = new Color(0.7f, 0.7f, 0.7f) } };
+            var listenersLabel = new Label { name = "listeners", style = { width = 30, unityTextAlign = TextAnchor.MiddleCenter } };
             
             element.Add(timeLabel);
             element.Add(typeLabel);
+            element.Add(senderLabel);
+            element.Add(listenersLabel);
             
             return element;
         }
@@ -266,10 +309,14 @@ namespace DynamicBox.EventManagement.Editor
 
             var timeLabel = element.Q<Label>("time");
             var typeLabel = element.Q<Label>("type");
+            var senderLabel = element.Q<Label>("sender");
+            var listenersLabel = element.Q<Label>("listeners");
 
             var evt = sourceList[index];
             timeLabel.text = evt.RealTime.ToString("F2");
             typeLabel.text = evt.TypeName;
+            senderLabel.text = evt.SenderClass;
+            listenersLabel.text = evt.ListenerCount.ToString();
         }
 
         private void OnSelectionChanged(IEnumerable<object> selection)
@@ -278,8 +325,23 @@ namespace DynamicBox.EventManagement.Editor
             {
                 if (item is CapturedEvent cap)
                 {
-                    _detailHeaderLabel.text = $"Event: {cap.TypeName}\nTime: {cap.RealTime:F2} (Frame {cap.FrameCount})";
-                    _detailLabel.text = cap.PayloadJson;
+                    _detailHeaderLabel.text = $"Event: {cap.TypeName}\nTime: {cap.RealTime:F2} (Frame {cap.FrameCount})\nSender: {cap.SenderClass}.{cap.SenderMethod}()\nListeners: {cap.ListenerCount}";
+                    
+                    var sb = new System.Text.StringBuilder();
+                    if (cap.ListenerCount > 0)
+                    {
+                        sb.AppendLine("--- Listeners ---");
+                        for (int i = 0; i < cap.ListenerCount; i++)
+                        {
+                            sb.AppendLine($"- {cap.ListenerDetails[i]}");
+                        }
+                        sb.AppendLine();
+                    }
+                    
+                    sb.AppendLine("--- Payload ---");
+                    sb.Append(cap.PayloadJson);
+
+                    _detailLabel.text = sb.ToString();
                 }
                 return;
             }
