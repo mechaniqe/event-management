@@ -35,9 +35,10 @@ namespace DynamicBox.EventManagement.Editor
             public string SenderMethod;
             public int ListenerCount;
             public string[] ListenerDetails;
+            public string FullStackTrace;
         }
 
-        private const int MaxEvents = 3300;
+        private const int MaxEvents = 1600;
         private List<CapturedEvent> _events = new List<CapturedEvent>();
         private List<CapturedEvent> _filteredEvents = new List<CapturedEvent>();
         private int _selectedFrameFilter = -1;
@@ -71,7 +72,7 @@ namespace DynamicBox.EventManagement.Editor
 
             string senderClass = "Unknown";
             string senderMethod = "Unknown";
-            var st = new System.Diagnostics.StackTrace();
+            var st = new System.Diagnostics.StackTrace(true);
             for (int i = 0; i < st.FrameCount; i++)
             {
                 var method = st.GetFrame(i)?.GetMethod();
@@ -105,7 +106,8 @@ namespace DynamicBox.EventManagement.Editor
                 SenderClass = senderClass,
                 SenderMethod = senderMethod,
                 ListenerCount = listenerCount,
-                ListenerDetails = listenerDetails
+                ListenerDetails = listenerDetails,
+                FullStackTrace = st.ToString()
             };
 
             if (string.IsNullOrEmpty(captured.PayloadJson) || captured.PayloadJson == "{}")
@@ -335,7 +337,11 @@ namespace DynamicBox.EventManagement.Editor
                 }
                     
                 sb.AppendLine("--- Payload ---");
-                sb.Append(selectedCap.PayloadJson);
+                sb.AppendLine(selectedCap.PayloadJson);
+                sb.AppendLine();
+                
+                sb.AppendLine("--- Stack Trace ---");
+                sb.Append(selectedCap.FullStackTrace);
 
                 _detailLabel.text = sb.ToString();
             }
