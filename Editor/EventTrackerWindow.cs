@@ -38,7 +38,7 @@ namespace DynamicBox.EventManagement.Editor
             public string FullStackTrace;
         }
 
-        private const int MaxEvents = 1600;
+        private int _timeRangeSeconds = 5;
         private List<CapturedEvent> _events = new List<CapturedEvent>();
         private List<CapturedEvent> _filteredEvents = new List<CapturedEvent>();
         private int _selectedFrameFilter = -1;
@@ -59,11 +59,56 @@ namespace DynamicBox.EventManagement.Editor
         private void OnEnable()
         {
             EventManager.OnEventFiredDebuggerHook += OnEventFired;
+            EditorApplication.update += OnEditorUpdate;
+            _timeRangeSeconds = EditorPrefs.GetInt("EventTracker_TimeRange", 5);
         }
 
         private void OnDisable()
         {
             EventManager.OnEventFiredDebuggerHook -= OnEventFired;
+            EditorApplication.update -= OnEditorUpdate;
+        }
+
+        private void OnEditorUpdate()
+        {
+            if (!_isCapturing || _events.Count == 0) return;
+            
+            float cutoff = Time.realtimeSinceStartup - _timeRangeSeconds;
+            int countToRemove = 0;
+            for (int i = 0; i < _events.Count; i++)
+            {
+                if (_events[i].RealTime < cutoff) countToRemove++;
+                else break;
+            }
+
+            if (countToRemove > 0)
+            {
+                 bool fullRefresh = false;
+                 if (_selectedFrameFilter != -1)
+                 {
+                      int fRemove = 0;
+                      for (int i = 0; i < _filteredEvents.Count; i++) {
+                           if (_filteredEvents[i].RealTime < cutoff) fRemove++;
+                           else break;
+                      }
+                      if (fRemove > 0)
+                      {
+                           _filteredEvents.RemoveRange(0, fRemove);
+                           fullRefresh = true;
+                      }
+                 }
+                 else
+                 {
+                      fullRefresh = true;
+                 }
+                 
+                 _events.RemoveRange(0, countToRemove);
+                 
+                 if (fullRefresh) 
+                 {
+                     RefreshListView();
+                 }
+            }
         }
 
         private void OnEventFired(IGameEvent evt)
@@ -116,10 +161,6 @@ namespace DynamicBox.EventManagement.Editor
             }
 
             _events.Add(captured);
-            if (_events.Count > MaxEvents)
-            {
-                _events.RemoveAt(0);
-            }
 
             bool needsRefresh = false;
 
@@ -186,6 +227,19 @@ namespace DynamicBox.EventManagement.Editor
             toggleCapture.style.alignItems = Align.Center;
 
             var spacer = new ToolbarSpacer() { style = { flexGrow = 1 } };
+            
+            var limitChoices = new List<string> { "3s", "5s", "10s", "20s", "30s" };
+            var limitDropdown = new DropdownField(limitChoices, _timeRangeSeconds.ToString() + "s");
+            limitDropdown.style.width = 60;
+            limitDropdown.RegisterValueChangedCallback(evt => {
+                string val = evt.newValue.Replace("s", "");
+                if (int.TryParse(val, out int newRange))
+                {
+                    _timeRangeSeconds = newRange;
+                    EditorPrefs.SetInt("EventTracker_TimeRange", newRange);
+                }
+            });
+
             _btnPrevFrame = new ToolbarButton(() => StepFrame(-1)) { text = "◀" };
             _lblFrameStatus = new Label("Viewing All") { style = { unityTextAlign = TextAnchor.MiddleCenter, width = 100, marginLeft = 4, marginRight = 4 } };
             _btnNextFrame = new ToolbarButton(() => StepFrame(1)) { text = "▶" };
@@ -196,6 +250,7 @@ namespace DynamicBox.EventManagement.Editor
             toolbar.Add(btnClear);
             toolbar.Add(toggleCapture);
             toolbar.Add(spacer);
+            toolbar.Add(limitDropdown);
             toolbar.Add(_btnPrevFrame);
             toolbar.Add(_lblFrameStatus);
             toolbar.Add(_btnNextFrame);
