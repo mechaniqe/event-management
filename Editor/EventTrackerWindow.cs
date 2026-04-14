@@ -46,8 +46,8 @@ namespace DynamicBox.EventManagement.Editor
         private bool _isCapturing = true;
 
         private ListView _listView;
-        private Label _detailLabel;
         private Label _detailHeaderLabel;
+        private VisualElement _detailContainer;
         private Label _lblClear;
         private Vector2 _hoverMousePos = new Vector2(-1, -1);
         private bool _isHoveringGraph = false;
@@ -325,12 +325,11 @@ namespace DynamicBox.EventManagement.Editor
             rightPane.style.paddingRight = 8;
             rightPane.style.paddingTop = 8;
 
-            _detailHeaderLabel = new Label("Select an event...") { style = { unityFontStyleAndWeight = FontStyle.Bold, marginBottom = 5 } };
+            _detailHeaderLabel = new Label("Select an event...") { style = { unityFontStyleAndWeight = FontStyle.Bold, fontSize = 14, marginBottom = 10 } };
             rightPane.Add(_detailHeaderLabel);
             
-            _detailLabel = new Label();
-            _detailLabel.style.whiteSpace = WhiteSpace.Normal;
-            rightPane.Add(_detailLabel);
+            _detailContainer = new VisualElement();
+            rightPane.Add(_detailContainer);
 
             splitView.Add(rightPane);
         }
@@ -389,36 +388,101 @@ namespace DynamicBox.EventManagement.Editor
             if (selectedCap != null)
             {
                 _highlightedFrame = selectedCap.FrameCount;
-                _detailHeaderLabel.text = $"Event: {selectedCap.TypeName}\nTime: {selectedCap.RealTime:F2} (Frame {selectedCap.FrameCount})\nSender: {selectedCap.SenderClass}.{selectedCap.SenderMethod}()\nListeners: {selectedCap.ListenerCount}";
-                    
-                var sb = new System.Text.StringBuilder();
+                _detailHeaderLabel.text = $"Event: {selectedCap.TypeName}";
+                
+                _detailContainer.Clear();
+                
+                // Info block
+                var info = new Label($"Time: {selectedCap.RealTime:F2} (Frame {selectedCap.FrameCount})\nSender: {selectedCap.SenderClass}.{selectedCap.SenderMethod}()");
+                info.style.marginBottom = 10;
+                info.style.color = new Color(0.7f, 0.7f, 0.7f);
+                _detailContainer.Add(info);
+
                 if (selectedCap.ListenerCount > 0)
                 {
-                    sb.AppendLine("--- Listeners ---");
-                    for (int i = 0; i < selectedCap.ListenerCount; i++)
+                    _detailContainer.Add(CreateHeader($"Listeners ({selectedCap.ListenerCount})"));
+                    var listenersBox = new VisualElement();
+                    listenersBox.style.paddingLeft = 10;
+                    foreach (var detail in selectedCap.ListenerDetails)
                     {
-                        sb.AppendLine($"- {selectedCap.ListenerDetails[i]}");
+                        var row = new VisualElement();
+                        row.style.flexDirection = FlexDirection.Row;
+                        row.style.alignItems = Align.Center;
+                        row.style.marginBottom = 2;
+                        
+                        var dot = new VisualElement();
+                        dot.style.width = 4;
+                        dot.style.height = 4;
+                        dot.style.backgroundColor = new Color(0.4f, 0.7f, 1f);
+                        dot.style.marginRight = 6;
+                        row.Add(dot);
+                        
+                        row.Add(new Label(detail));
+                        listenersBox.Add(row);
                     }
-                    sb.AppendLine();
+                    _detailContainer.Add(listenersBox);
                 }
                     
-                sb.AppendLine("--- Payload ---");
-                sb.AppendLine(selectedCap.PayloadJson);
-                sb.AppendLine();
+                _detailContainer.Add(CreateHeader("Payload"));
+                _detailContainer.Add(CreateCodeBlock(selectedCap.PayloadJson));
                 
-                sb.AppendLine("--- Stack Trace ---");
-                sb.Append(selectedCap.FullStackTrace);
-
-                _detailLabel.text = sb.ToString();
+                _detailContainer.Add(CreateHeader("Stack Trace"));
+                var stackText = CreateCodeBlock(selectedCap.FullStackTrace);
+                stackText.Q<Label>().style.fontSize = 10; // Smaller stack trace
+                _detailContainer.Add(stackText);
             }
             else
             {
                 _highlightedFrame = -1;
                 _detailHeaderLabel.text = "Select an event...";
-                _detailLabel.text = "";
+                _detailContainer.Clear();
             }
             
             Repaint();
+        }
+
+        private VisualElement CreateHeader(string text)
+        {
+            var label = new Label(text);
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.style.fontSize = 12;
+            label.style.marginTop = 15;
+            label.style.marginBottom = 5;
+            label.style.color = new Color(0.9f, 0.9f, 0.9f);
+            return label;
+        }
+
+        private VisualElement CreateCodeBlock(string content)
+        {
+            var container = new VisualElement();
+            container.style.backgroundColor = new Color(0, 0, 0, 0.2f);
+            container.style.borderLeftWidth = 1;
+            container.style.borderRightWidth = 1;
+            container.style.borderTopWidth = 1;
+            container.style.borderBottomWidth = 1;
+            container.style.borderLeftColor = new Color(1, 1, 1, 0.05f);
+            container.style.borderRightColor = new Color(1, 1, 1, 0.05f);
+            container.style.borderTopColor = new Color(1, 1, 1, 0.05f);
+            container.style.borderBottomColor = new Color(1, 1, 1, 0.05f);
+            container.style.borderTopLeftRadius = 4;
+            container.style.borderTopRightRadius = 4;
+            container.style.borderBottomLeftRadius = 4;
+            container.style.borderBottomRightRadius = 4;
+            container.style.paddingLeft = 10;
+            container.style.paddingRight = 10;
+            container.style.paddingTop = 10;
+            container.style.paddingBottom = 10;
+
+            var label = new Label(content);
+            label.style.whiteSpace = WhiteSpace.Pre;
+            
+            // Try to find a monospace font
+            var font = EditorGUIUtility.Load("Fonts/LucidaConsole.ttf") as Font;
+            if (font != null) label.style.unityFont = font;
+            else label.style.fontFamily = "monospace";
+            
+            container.Add(label);
+            return container;
         }
 
         private void DrawGraphBase()
