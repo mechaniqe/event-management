@@ -9,7 +9,7 @@ namespace DynamicBox.EventManagement.Editor
 {
     public class EventTrackerWindow : EditorWindow
     {
-        [MenuItem("Window/DynamicBox/Event Tracker")]
+        [MenuItem("Tools/DynamicBox/Event Tracker")]
         public static void ShowExample()
         {
             EventTrackerWindow wnd = GetWindow<EventTrackerWindow>();
