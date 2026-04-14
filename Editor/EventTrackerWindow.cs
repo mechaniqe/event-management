@@ -479,7 +479,6 @@ namespace DynamicBox.EventManagement.Editor
             // Try to find a monospace font
             var font = EditorGUIUtility.Load("Fonts/LucidaConsole.ttf") as Font;
             if (font != null) label.style.unityFont = font;
-            else label.style.fontFamily = "monospace";
             
             container.Add(label);
             return container;
@@ -634,7 +633,7 @@ namespace DynamicBox.EventManagement.Editor
             
             _listView.ClearSelection();
             _detailHeaderLabel.text = "Select an event...";
-            _detailLabel.text = "";
+            _detailContainer.Clear();
 
             RefreshListView();
         }
@@ -683,7 +682,7 @@ namespace DynamicBox.EventManagement.Editor
                 
                 _listView.ClearSelection();
                 _detailHeaderLabel.text = "Select an event...";
-                _detailLabel.text = "";
+                _detailContainer.Clear();
                 
                 RefreshListView();
             }
@@ -696,7 +695,7 @@ namespace DynamicBox.EventManagement.Editor
                 if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
                 RefreshListView();
                 _detailHeaderLabel.text = "Select an event...";
-                _detailLabel.text = "";
+                _detailContainer.Clear();
             }
         }
 
