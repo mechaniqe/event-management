@@ -313,7 +313,6 @@ namespace DynamicBox.EventManagement.Editor
 
             _listView = new ListView(_events, 22, MakeItem, BindItem);
             _listView.style.flexGrow = 1;
-            _listView.selectionChanged += OnSelectionChanged;
             leftPane.Add(_listView);
             splitView.Add(leftPane);
 
@@ -332,6 +331,9 @@ namespace DynamicBox.EventManagement.Editor
             rightPane.Add(_detailContainer);
 
             splitView.Add(rightPane);
+
+            // Hook up events at the end once all labels/containers are initialized
+            _listView.selectionChanged += OnSelectionChanged;
         }
 
         private VisualElement MakeItem()
@@ -615,7 +617,7 @@ namespace DynamicBox.EventManagement.Editor
         private void SelectFrame(int frame)
         {
             _selectedFrameFilter = frame;
-            _lblClear.text = "Clear Filter";
+            if (_lblClear != null) _lblClear.text = "Clear Filter";
             if (_lblFrameStatus != null) _lblFrameStatus.text = "Frame: " + frame;
             _btnPrevFrame?.SetEnabled(true);
             _btnNextFrame?.SetEnabled(true);
@@ -625,15 +627,19 @@ namespace DynamicBox.EventManagement.Editor
             {
                 if (e.FrameCount == frame) _filteredEvents.Add(e);
             }
-            _listView.itemsSource = _filteredEvents;
+            
+            if (_listView != null)
+            {
+                _listView.itemsSource = _filteredEvents;
+                _listView.ClearSelection();
+            }
             
             _isCapturing = false;
-            var toggleCapture = rootVisualElement.Q<ToolbarToggle>("toggleCapture");
+            var toggleCapture = rootVisualElement?.Q<ToolbarToggle>("toggleCapture");
             if (toggleCapture != null) toggleCapture.value = false;
             
-            _listView.ClearSelection();
-            _detailHeaderLabel.text = "Select an event...";
-            _detailContainer.Clear();
+            if (_detailHeaderLabel != null) _detailHeaderLabel.text = "Select an event...";
+            _detailContainer?.Clear();
 
             RefreshListView();
         }
@@ -674,15 +680,19 @@ namespace DynamicBox.EventManagement.Editor
             if (_selectedFrameFilter != -1)
             {
                 _selectedFrameFilter = -1;
-                _lblClear.text = "Clear";
-                _listView.itemsSource = _events;
+                if (_lblClear != null) _lblClear.text = "Clear";
+                if (_listView != null)
+                {
+                    _listView.itemsSource = _events;
+                    _listView.ClearSelection();
+                }
+
                 _btnPrevFrame?.SetEnabled(false);
                 _btnNextFrame?.SetEnabled(false);
                 if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
                 
-                _listView.ClearSelection();
-                _detailHeaderLabel.text = "Select an event...";
-                _detailContainer.Clear();
+                if (_detailHeaderLabel != null) _detailHeaderLabel.text = "Select an event...";
+                _detailContainer?.Clear();
                 
                 RefreshListView();
             }
@@ -693,9 +703,11 @@ namespace DynamicBox.EventManagement.Editor
                 _btnPrevFrame?.SetEnabled(false);
                 _btnNextFrame?.SetEnabled(false);
                 if (_lblFrameStatus != null) _lblFrameStatus.text = "Viewing All";
+                
                 RefreshListView();
-                _detailHeaderLabel.text = "Select an event...";
-                _detailContainer.Clear();
+                
+                if (_detailHeaderLabel != null) _detailHeaderLabel.text = "Select an event...";
+                _detailContainer?.Clear();
             }
         }
 
